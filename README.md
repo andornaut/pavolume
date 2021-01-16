@@ -1,6 +1,7 @@
 # pavolume
 
-A volume control and monitoring utility for [PulseAudio](https://www.freedesktop.org/wiki/Software/PulseAudio/).
+pavolume is a volume control and monitoring utility for
+[PulseAudio](https://www.freedesktop.org/wiki/Software/PulseAudio/).
 
 pavolume is used by [BBS - BSPWM Bar Scripts](https://github.com/andornaut/bbs)
 to render a bar (top panel) volume widget.
@@ -9,7 +10,7 @@ to render a bar (top panel) volume widget.
 
 ## Usage
 
-```
+```bash
 make
 sudo make install
 pavolume
@@ -27,7 +28,7 @@ Flag|Description
 
 ### Examples
 
-```
+```bash
 $ pavolume -h
 pavolume [-h|-s|-f format|-m [on|off|toggle]|-v [+|-]number]
 
@@ -35,7 +36,7 @@ $ Print volume levels whenever they change (prefix with "V"). Set initial volume
 pavolume -sf "S%s" -v 50
 ```
 
-## Dependencies
+## Runtime Dependencies
 
 * [PulseAudio](https://www.freedesktop.org/wiki/Software/PulseAudio/)
 
