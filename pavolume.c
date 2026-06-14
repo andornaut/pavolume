@@ -21,6 +21,8 @@ typedef struct Command {
     bool is_mute_toggle;
     bool is_snoop;
     int volume;
+    pa_operation *ops[4];
+    int op_count;
 } Command;
 
 static void wait_loop(pa_operation *op) {
@@ -53,6 +55,18 @@ static pa_volume_t denormalize(int volume) {
     return (pa_volume_t) round(volume * PA_VOLUME_NORM / 100);
 }
 
+// Record an operation so the caller can wait for it to complete (and release its reference).
+static void track_op(Command *command, pa_operation *op) {
+    if (op == NULL) {
+        return;
+    }
+    if (command->op_count < (int) (sizeof(command->ops) / sizeof(command->ops[0]))) {
+        command->ops[command->op_count++] = op;
+    } else {
+        pa_operation_unref(op);
+    }
+}
+
 static void set_volume(pa_context *c, const pa_sink_info *i, __attribute__((unused)) int eol, void *userdata) {
     if (i == NULL) {
         return;
@@ -60,13 +74,13 @@ static void set_volume(pa_context *c, const pa_sink_info *i, __attribute__((unus
 
     Command *command = (Command *) userdata;
     if (command->is_mute_on) {
-        pa_context_set_sink_mute_by_index(c, i->index, 1, NULL, NULL);
+        track_op(command, pa_context_set_sink_mute_by_index(c, i->index, 1, NULL, NULL));
     }
     if (command->is_mute_off) {
-        pa_context_set_sink_mute_by_index(c, i->index, 0, NULL, NULL);
+        track_op(command, pa_context_set_sink_mute_by_index(c, i->index, 0, NULL, NULL));
     }
     if (command->is_mute_toggle) {
-        pa_context_set_sink_mute_by_index(c, i->index, !i->mute, NULL, NULL);
+        track_op(command, pa_context_set_sink_mute_by_index(c, i->index, !i->mute, NULL, NULL));
     }
     if (command->volume == -1 && !command->is_delta_volume) {
         return;
@@ -74,13 +88,13 @@ static void set_volume(pa_context *c, const pa_sink_info *i, __attribute__((unus
 
     // Turn muting off on any volume change, unless muting was specifically turned on or toggled.
     if (!command->is_mute_on && !command->is_mute_toggle) {
-        pa_context_set_sink_mute_by_index(c, i->index, 0, NULL, NULL);
+        track_op(command, pa_context_set_sink_mute_by_index(c, i->index, 0, NULL, NULL));
     }
 
     int new_volume = command->is_delta_volume ? normalize(pa_cvolume_avg(&i->volume)) + command->volume : command->volume;
     pa_cvolume cvolume;
     pa_cvolume_set(&cvolume, i->volume.channels, denormalize(constrain_volume(new_volume)));
-    pa_context_set_sink_volume_by_index(c, i->index, &cvolume, NULL, NULL);
+    track_op(command, pa_context_set_sink_volume_by_index(c, i->index, &cvolume, NULL, NULL));
 }
 
 static void get_server_info(__attribute__((unused)) pa_context *c, const pa_server_info *i, void *userdata) {
@@ -175,6 +189,7 @@ int main(int argc, char *argv[]) {
             .is_mute_toggle = false,
             .is_snoop = false,
             .volume = -1,
+            .op_count = 0,
     };
 
     int opt;
@@ -240,6 +255,10 @@ int main(int argc, char *argv[]) {
     char default_sink_name[SINK_NAME_MAX] = {0};
     wait_loop(pa_context_get_server_info(context, get_server_info, default_sink_name));
     wait_loop(pa_context_get_sink_info_by_name(context, default_sink_name, set_volume, &command));
+    // Wait for the volume/mute changes to be applied before reading the level back.
+    for (int i = 0; i < command.op_count; i++) {
+        wait_loop(command.ops[i]);
+    }
     wait_loop(pa_context_get_sink_info_by_name(context, default_sink_name, print_volume, &command));
 
     if (command.is_snoop) {
