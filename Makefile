@@ -10,10 +10,6 @@ PREFIX    ?= /usr/local
 BINPREFIX  = $(PREFIX)/bin
 
 default: $(TARGET)
-all: default
-
-OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
-
 all: $(TARGET)
 
 debug: CFLAGS += -O0 -g
@@ -30,7 +26,6 @@ uninstall:
 	rm -f "$(DESTDIR)$(BINPREFIX)/$(TARGET)"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS)
+	rm -f $(TARGET)
 
 .PHONY: all debug default install uninstall clean
-.PRECIOUS: $(TARGET) $(OBJECTS)

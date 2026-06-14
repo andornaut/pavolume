@@ -109,7 +109,7 @@ static void print_volume(__attribute__((unused)) pa_context *c, const pa_sink_in
 }
 
 static void handle_server_info_event(pa_context *c, const pa_server_info *i, void *userdata) {
-    if (i == NULL) {
+    if (i == NULL || i->default_sink_name == NULL) {
         return;
     }
     pa_context_get_sink_info_by_name(c, i->default_sink_name, print_volume, userdata);
@@ -161,9 +161,9 @@ static int quit(int new_retval) {
     return retval;
 }
 
-static int usage() {
-    fprintf(stderr, "pavolume [-h|-s|-f format|-m [on|off|toggle]|-v [+|-]number]\n");
-    return quit(EXIT_FAILURE);
+static int usage(FILE *stream, int new_retval) {
+    fprintf(stream, "pavolume [-h|-s|-f format|-m [on|off|toggle]|-v [+|-]number]\n");
+    return quit(new_retval);
 }
 
 int main(int argc, char *argv[]) {
@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
         switch (opt) {
             case 'h':
                 // help
-                return usage();
+                return usage(stdout, EXIT_SUCCESS);
             case 'f':
                 // format
                 command.format = optarg;
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
                 command.is_mute_on = strcmp("on", optarg) == 0;
                 command.is_mute_toggle = strcmp("toggle", optarg) == 0;
                 if (!(command.is_mute_off || command.is_mute_on || command.is_mute_toggle)) {
-                    return usage();
+                    return usage(stderr, EXIT_FAILURE);
                 }
                 break;
             case 's':
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
                 command.volume = (int) strtol(optarg, &endptr, 10);
                 if (endptr == optarg || *endptr != '\0') {
                     // No digits were consumed, or there was trailing non-numeric input.
-                    return usage();
+                    return usage(stderr, EXIT_FAILURE);
                 }
                 if ('-' == optarg[0] || '+' == optarg[0]) {
                     command.is_delta_volume = true;
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
                 break;
             }
             default:
-                return usage();
+                return usage(stderr, EXIT_FAILURE);
         }
     }
 
