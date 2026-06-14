@@ -1,16 +1,17 @@
 #include <getopt.h>
 #include <math.h>
-#include <memory.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <pulse/pulseaudio.h>
 
 #define FORMAT "%s"
+#define SINK_NAME_MAX 256
 
 static pa_mainloop *mainloop = NULL;
 static pa_mainloop_api *mainloop_api = NULL;
 static pa_context *context = NULL;
-int retval = EXIT_SUCCESS;
+static int retval = EXIT_SUCCESS;
 
 typedef struct Command {
     char *format;
@@ -23,6 +24,9 @@ typedef struct Command {
 } Command;
 
 static void wait_loop(pa_operation *op) {
+    if (op == NULL) {
+        return;
+    }
     while (pa_operation_get_state(op) == PA_OPERATION_RUNNING) {
         if (pa_mainloop_iterate(mainloop, 1, &retval) < 0) {
             break;
@@ -73,17 +77,18 @@ static void set_volume(pa_context *c, const pa_sink_info *i, __attribute__((unus
         pa_context_set_sink_mute_by_index(c, i->index, 0, NULL, NULL);
     }
 
-    pa_cvolume *cvolume = &i->volume;
-    int new_volume = command->is_delta_volume ? normalize(pa_cvolume_avg(cvolume)) + command->volume : command->volume;
-    pa_cvolume *new_cvolume = pa_cvolume_set(cvolume, i->volume.channels, denormalize(constrain_volume(new_volume)));
-    pa_context_set_sink_volume_by_index(c, i->index, new_cvolume, NULL, NULL);
+    int new_volume = command->is_delta_volume ? normalize(pa_cvolume_avg(&i->volume)) + command->volume : command->volume;
+    pa_cvolume cvolume;
+    pa_cvolume_set(&cvolume, i->volume.channels, denormalize(constrain_volume(new_volume)));
+    pa_context_set_sink_volume_by_index(c, i->index, &cvolume, NULL, NULL);
 }
 
 static void get_server_info(__attribute__((unused)) pa_context *c, const pa_server_info *i, void *userdata) {
-    if (i == NULL) {
+    if (i == NULL || i->default_sink_name == NULL) {
         return;
     }
-    strncpy(userdata, i->default_sink_name, 255);
+    strncpy(userdata, i->default_sink_name, SINK_NAME_MAX - 1);
+    ((char *) userdata)[SINK_NAME_MAX - 1] = '\0';
 }
 
 static void print_volume(__attribute__((unused)) pa_context *c, const pa_sink_info *i, __attribute__((unused)) int eol,
@@ -121,17 +126,20 @@ static void handle_sink_event(__attribute__((unused)) pa_context *c, pa_subscrip
 
 }
 
-static int init_context(pa_context *c, int retval) {
-    pa_context_connect(c, NULL, PA_CONTEXT_NOFLAGS, NULL);
+static int init_context(pa_context *c) {
+    if (pa_context_connect(c, NULL, PA_CONTEXT_NOFLAGS, NULL) < 0) {
+        return 1;
+    }
     pa_context_state_t state;
+    int iterate_retval = 0;
     while (state = pa_context_get_state(c), true) {
         if (state == PA_CONTEXT_READY) {
             return 0;
         }
-        if (state == PA_CONTEXT_FAILED) {
+        if (state == PA_CONTEXT_FAILED || state == PA_CONTEXT_TERMINATED) {
             return 1;
         }
-        pa_mainloop_iterate(mainloop, 1, &retval);
+        pa_mainloop_iterate(mainloop, 1, &iterate_retval);
     }
 }
 
@@ -193,18 +201,19 @@ int main(int argc, char *argv[]) {
                 // it changes.
                 command.is_snoop = true;
                 break;
-            case 'v':
+            case 'v': {
                 // volume between 0 and 100 inclusive; expressed either as a specific value or as a delta.
-                command.volume = (int) strtol(optarg, NULL, 10);
-                if (command.volume == 0 && '0' != optarg[0]) {
-                    // If `strtol` converted the `optarg` to 0, but the argument didn't begin with a '0'
-                    // then it must not have been numeric.
+                char *endptr;
+                command.volume = (int) strtol(optarg, &endptr, 10);
+                if (endptr == optarg || *endptr != '\0') {
+                    // No digits were consumed, or there was trailing non-numeric input.
                     return usage();
                 }
                 if ('-' == optarg[0] || '+' == optarg[0]) {
                     command.is_delta_volume = true;
                 }
                 break;
+            }
             default:
                 return usage();
         }
@@ -223,15 +232,15 @@ int main(int argc, char *argv[]) {
     }
 
     context = pa_context_new(mainloop_api, argv[0]);
-    if (!context || init_context(context, retval) != 0) {
+    if (!context || init_context(context) != 0) {
         fprintf(stderr, "Could not initialize PulseAudio context\n");
         return quit(EXIT_FAILURE);
     }
 
-    char *default_sink_name[256];
-    wait_loop(pa_context_get_server_info(context, get_server_info, &default_sink_name));
-    wait_loop(pa_context_get_sink_info_by_name(context, (char *) default_sink_name, set_volume, &command));
-    wait_loop(pa_context_get_sink_info_by_name(context, (char *) default_sink_name, print_volume, &command));
+    char default_sink_name[SINK_NAME_MAX] = {0};
+    wait_loop(pa_context_get_server_info(context, get_server_info, default_sink_name));
+    wait_loop(pa_context_get_sink_info_by_name(context, default_sink_name, set_volume, &command));
+    wait_loop(pa_context_get_sink_info_by_name(context, default_sink_name, print_volume, &command));
 
     if (command.is_snoop) {
         pa_context_set_subscribe_callback(context, handle_sink_event, &command);

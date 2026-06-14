@@ -6,7 +6,7 @@ pavolume is a volume control and monitoring utility for
 pavolume is used by [BBS - BSPWM Bar Scripts](https://github.com/andornaut/bbs)
 to render a bar (top panel) volume widget.
 
-![Screenshot](https://raw.githubusercontent.com/andornaut/pavolume/master/screenshot.png)
+![Screenshot](https://raw.githubusercontent.com/andornaut/pavolume/main/screenshot.png)
 
 ## Usage
 
@@ -32,7 +32,7 @@ Flag|Description
 $ pavolume -h
 pavolume [-h|-s|-f format|-m [on|off|toggle]|-v [+|-]number]
 
-$ Print volume levels whenever they change (prefix with "V"). Set initial volume to 50%. Implicitly disable muting.
+# Print volume levels whenever they change (prefix with "S"). Set initial volume to 50%. Implicitly disable muting.
 pavolume -sf "S%s" -v 50
 ```
 

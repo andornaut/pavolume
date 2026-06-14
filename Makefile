@@ -19,7 +19,7 @@ all: $(TARGET)
 debug: CFLAGS += -O0 -g
 debug: $(TARGET)
 
-$(TARGET):
+$(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c $(LIBS)
 
 install:
