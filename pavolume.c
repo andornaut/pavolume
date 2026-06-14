@@ -7,6 +7,9 @@
 
 #define FORMAT "%s"
 #define SINK_NAME_MAX 256
+// set_volume() issues at most three operations per run (one mute change, an
+// implicit unmute, and one volume change); four leaves a margin.
+#define COMMAND_MAX_OPS 4
 
 static pa_mainloop *mainloop = NULL;
 static pa_mainloop_api *mainloop_api = NULL;
@@ -21,7 +24,7 @@ typedef struct Command {
     bool is_mute_toggle;
     bool is_snoop;
     int volume;
-    pa_operation *ops[4];
+    pa_operation *ops[COMMAND_MAX_OPS];
     int op_count;
 } Command;
 
