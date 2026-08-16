@@ -47,3 +47,46 @@ jobs:
 
       - name: Build
         run: make
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          # Nothing in this job uses the token, so it is not left
+          # in .git/config for a later step to read.
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version-file: .python-version
+
+      # A wheel carrying the cppcheck binary, so the pin sits in a manifest
+      # Dependabot reads rather than in an apt package name the runner image
+      # decides the version of.
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # The compiler already runs with -Wall -Wextra -pedantic in the Build job.
+      # cppcheck is the part gcc does not do: it reads the whole translation
+      # unit for use-after-free, leaks and unchecked returns rather than
+      # diagnosing statement by statement.
+      #
+      # Without libpulse's headers: cppcheck reports every unresolved type as a
+      # separate finding, and this is a check on what is written here rather
+      # than on PulseAudio's API. --check-level=exhaustive because one 300-line
+      # file is nowhere near the budget the normal level exists to protect.
+      - name: Run cppcheck
+        run: |
+          cppcheck --enable=warning,style,performance,portability \
+            --std=c99 \
+            --error-exitcode=1 \
+            --inline-suppr \
+            --check-level=exhaustive \
+            --suppressions-list=.cppcheck-suppressions \
+            pavolume.c

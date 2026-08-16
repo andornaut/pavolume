@@ -1,0 +1,5 @@
+# PulseAudio fixes the callback signatures, so a `void *userdata` that is only
+# read cannot be narrowed to `const void *` without casting every function
+# pointer handed to pa_context_get_sink_info_by_name and pa_context_subscribe.
+# The local the callback casts userdata into is const where it can be.
+constParameterCallback

@@ -1,5 +1,13 @@
 version: 2
 updates:
+  # requirements-dev.txt holds the lint gate's tooling. Nothing here is linked
+  # into the program: pavolume is C and builds against libpulse.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

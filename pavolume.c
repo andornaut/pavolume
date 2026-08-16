@@ -114,7 +114,7 @@ static void print_volume(__attribute__((unused)) pa_context *c, const pa_sink_in
         return;
     }
 
-    Command *command = (Command *) userdata;
+    const Command *command = (const Command *) userdata;
     char output[4] = "---";
     if (!i->mute) {
         snprintf(output, 4, "%d", normalize(pa_cvolume_avg(&(i->volume))));
