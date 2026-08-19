@@ -9,7 +9,7 @@ pavolume is a volume control and monitoring utility for
 pavolume is used by [BBS - BSPWM Bar Scripts](https://github.com/andornaut/bbs)
 to render a bar (top panel) volume widget.
 
-![Screenshot](https://raw.githubusercontent.com/andornaut/pavolume/main/screenshot.png)
+![Screenshot](./screenshot.png)
 
 ## Usage
 
