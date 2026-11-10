@@ -1,3 +1,23 @@
+.DEFAULT_GOAL := build
+
+CHECK_TASKS := lint build
+BUILD_OUTPUTS := pavolume
+CONTAINER_BUILD_ARGS := PYTHON_VERSION=$(shell cat .python-version)
+
+override COMMAND := $(value COMMAND)
+override TEST_ARGS := $(value TEST_ARGS)
+
+export CHECK_TASKS BUILD_OUTPUTS CONTAINER_BUILD_ARGS TEST_ARGS COMMAND
+
+.PHONY: check check-info lint test build exec
+
+check lint test build exec:
+	@./tests/container/run $@
+
+check-info:
+	@./tests/container/run info
+
+
 CC      ?= gcc
 CFLAGS  += -std=c99 -pedantic -Wall -Wextra -Wno-discarded-qualifiers -I$(PREFIX)/include
 CFLAGS  += -D_POSIX_C_SOURCE=200112L
@@ -9,11 +29,15 @@ TARGET   = pavolume
 PREFIX    ?= /usr/local
 BINPREFIX  = $(PREFIX)/bin
 
-default: $(TARGET)
-all: $(TARGET)
+default all: build
 
-debug: CFLAGS += -O0 -g
-debug: $(TARGET)
+debug:
+	@$(MAKE) exec COMMAND='make debug-native'
+
+debug-native: CFLAGS += -O0 -g
+debug-native: $(TARGET)
+
+build-native: $(TARGET)
 
 $(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c $(LIBS)
@@ -28,4 +52,4 @@ uninstall:
 clean:
 	rm -f $(TARGET)
 
-.PHONY: all debug default install uninstall clean
+.PHONY: all debug debug-native build-native default install uninstall clean

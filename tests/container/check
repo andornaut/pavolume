@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+mode=${1:-check}
+shift || true
+
+lint() {
+    cppcheck --enable=warning,style,performance,portability \
+        --std=c99 --error-exitcode=1 --inline-suppr --check-level=exhaustive \
+        --suppressions-list=.cppcheck-suppressions pavolume.c
+    /opt/check-tools/node_modules/.bin/markdownlint-cli2
+}
+
+build() {
+    make build-native
+}
+
+case "$mode" in
+    check) lint; build ;;
+    lint) lint ;;
+    build) build ;;
+    test) printf '%s\n' 'No test suite declared' >&2; exit 2 ;;
+    exec)
+        if [ "$#" -gt 0 ]; then exec "$@"; fi
+        exec sh -ec "${COMMAND:?COMMAND must be provided}"
+        ;;
+    *) printf '%s\n' "Unknown check category: $mode" >&2; exit 2 ;;
+esac

@@ -46,3 +46,19 @@ pavolume -sf "S%s" -v 50
 ## Build Dependencies
 
 * libpulse (eg. [libpulse-dev](https://packages.ubuntu.com/search?keywords=libpulse-dev))
+
+## Verification
+
+Docker and Make run verification with an isolated source snapshot and scratch
+storage. `make check` does not modify the checkout or access host credentials.
+`make build` exports the compiled `pavolume` binary for installation. PulseAudio
+headers and the compiler are provided by the build image.
+
+```bash
+make check-info
+make check
+make lint
+make build
+```
+
+No unit test suite is declared; `make test` reports that explicitly.
