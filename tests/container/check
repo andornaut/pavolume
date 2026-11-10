@@ -5,6 +5,7 @@ mode=${1:-check}
 shift || true
 
 lint() {
+    shellcheck -x -P SCRIPTDIR tests/container/run tests/container/check
     cppcheck --enable=warning,style,performance,portability \
         --std=c99 --error-exitcode=1 --inline-suppr --check-level=exhaustive \
         --suppressions-list=.cppcheck-suppressions pavolume.c

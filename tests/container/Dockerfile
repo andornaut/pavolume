@@ -1,7 +1,9 @@
 ARG PYTHON_VERSION=3.12
 FROM node:24.22.2 AS node
+FROM koalaman/shellcheck:v0.11.0 AS shellcheck
 FROM python:${PYTHON_VERSION}
 COPY --from=node /usr/local /opt/node
+COPY --from=shellcheck /bin/shellcheck /usr/local/bin/shellcheck
 ENV PATH="/opt/node/bin:/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
