@@ -1,3 +1,5 @@
 tests/container/Dockerfile
 tests/container/check
 requirements-dev.txt
+tests/container/package.json
+tests/container/package-lock.json

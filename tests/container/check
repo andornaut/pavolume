@@ -9,7 +9,7 @@ lint() {
     cppcheck --enable=warning,style,performance,portability \
         --std=c99 --error-exitcode=1 --inline-suppr --check-level=exhaustive \
         --suppressions-list=.cppcheck-suppressions pavolume.c
-    /opt/check-tools/node_modules/.bin/markdownlint-cli2
+    /opt/markdown/node_modules/.bin/markdownlint-cli2
 }
 
 build() {
