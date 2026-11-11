@@ -68,6 +68,8 @@ jobs:
           set -euo pipefail
           source tests/container/stock
           stock_begin "$PWD"
+          [[ ${revision} == "${GITHUB_SHA:?}" ]]
+          [[ ${source_dirty} == false ]]
           stock_image python_image "python:$(cat .python-version)"
           stock_prepare "${python_image}" python -- sh -ec '
           python -m venv /scratch/venv >&2
