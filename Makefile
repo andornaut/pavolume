@@ -1,26 +1,3 @@
-.DEFAULT_GOAL := build
-
-CHECK_TASKS := lint build
-BUILD_OUTPUTS := pavolume
-TEST_OUTPUTS :=
-CONTAINER_BUILD_ARGS := PYTHON_VERSION=$(shell cat .python-version)
-
-override COMMAND := $(value COMMAND)
-override TEST_ARGS := $(value TEST_ARGS)
-
-export CHECK_TASKS BUILD_OUTPUTS TEST_OUTPUTS CONTAINER_BUILD_ARGS TEST_ARGS COMMAND
-export CHECK_TIMEOUT_SECONDS CHECK_MEMORY CHECK_SCRATCH_SIZE CHECK_WORK_SIZE CHECK_TMP_SIZE CHECK_NETWORK_LINT CONTAINER_IMAGE
-export CHECK_ADMISSION
-
-.PHONY: check check-info lint test build exec
-
-check lint test build exec:
-	@./tests/container/run $@
-
-check-info:
-	@./tests/container/run info
-
-
 CC      ?= gcc
 CFLAGS  += -std=c99 -pedantic -Wall -Wextra -Wno-discarded-qualifiers -I$(PREFIX)/include
 CFLAGS  += -D_POSIX_C_SOURCE=200112L
@@ -32,15 +9,11 @@ TARGET   = pavolume
 PREFIX    ?= /usr/local
 BINPREFIX  = $(PREFIX)/bin
 
-default all: build
+default: $(TARGET)
+all: $(TARGET)
 
-debug:
-	@$(MAKE) exec COMMAND='make debug-native'
-
-debug-native: CFLAGS += -O0 -g
-debug-native: $(TARGET)
-
-build-native: $(TARGET)
+debug: CFLAGS += -O0 -g
+debug: $(TARGET)
 
 $(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $@.c $(LIBS)
@@ -55,4 +28,20 @@ uninstall:
 clean:
 	rm -f $(TARGET)
 
-.PHONY: all debug debug-native build-native default install uninstall clean
+.PHONY: all debug default install uninstall clean
+
+PYTHON_IMAGE := python:$(shell cat .python-version)
+MARKDOWN_IMAGE := node:24.22.2
+SHELLCHECK_IMAGE := koalaman/shellcheck:v0.11.0
+CONTAINER_BUILD_ARGS := PYTHON_VERSION=$(shell cat .python-version)
+
+export PYTHON_IMAGE MARKDOWN_IMAGE SHELLCHECK_IMAGE CONTAINER_BUILD_ARGS
+export CHECK_TIMEOUT_SECONDS CHECK_MEMORY CHECK_SCRATCH_SIZE CHECK_WORK_SIZE CHECK_TMP_SIZE CONTAINER_IMAGE
+
+.PHONY: check lint check-build
+
+check lint:
+	@./tests/container/check-stock $@
+
+check-build:
+	@CHECK_TASKS=build ./tests/container/run check

@@ -49,16 +49,7 @@ pavolume -sf "S%s" -v 50
 
 ## Verification
 
-Docker and Make run verification with an isolated source snapshot and scratch
-storage. `make check` does not modify the checkout or access host credentials.
-`make build` exports the compiled `pavolume` binary for installation. PulseAudio
-headers and the compiler are provided by the build image.
+Run `make check` for containerized lint and C compilation. Stock images run the static checks. A compiler image provides PulseAudio headers
+for the C build. No unit test suite is declared.
 
-```bash
-make check-info
-make check
-make lint
-make build
-```
-
-No unit test suite is declared; `make test` reports that explicitly.
+The native `make`, `make all` and `make debug` commands compile locally.

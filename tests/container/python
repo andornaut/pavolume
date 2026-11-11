@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+case "$1" in
+    prepare)
+        python -m venv /scratch/venv >&2
+        /scratch/venv/bin/python -m pip install --disable-pip-version-check -r requirements-dev.txt >&2
+        exec tar --create --file - --directory / scratch/venv
+        ;;
+    lint)
+        exec /scratch/venv/bin/cppcheck --enable=warning,style,performance,portability \
+            --std=c99 --error-exitcode=1 --inline-suppr --check-level=exhaustive \
+            --suppressions-list=.cppcheck-suppressions pavolume.c
+        ;;
+    *) exit 2 ;;
+esac
