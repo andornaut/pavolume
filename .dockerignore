@@ -1,0 +1,10 @@
+**
+!Makefile
+!pavolume.c
+!.python-version
+!tests/
+tests/*
+!tests/container/
+tests/container/*
+!tests/container/Dockerfile
+!tests/container/compiler

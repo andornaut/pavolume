@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+cp /opt/source/Makefile /opt/source/pavolume.c /opt/source/.python-version /work/
+cd /work
+exec make all

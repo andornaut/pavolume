@@ -1,6 +1,0 @@
-#!/bin/sh
-set -eu
-case "${1:-check}" in
-    check|build) exec make all ;;
-    *) printf '%s\n' 'The compiler image only builds the native C target.' >&2; exit 2 ;;
-esac
