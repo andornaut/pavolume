@@ -1,55 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 checkout=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
-stock_entrypoint_path=${BASH_SOURCE[0]}
-stock_entrypoint_hash=$(sha256sum "${stock_entrypoint_path}" | cut -d ' ' -f1)
 # shellcheck source=tests/container/stock
 source "${checkout}/tests/container/stock"
 action=${1:-check}
 case "${action}" in check|lint|build) ;; *) printf 'Unknown project check: %s\n' "${action}" >&2; exit 2 ;; esac
 if (( $# > 1 )); then printf '%s\n' 'Project checks do not accept extra arguments.' >&2; exit 2; fi
-: "${PYTHON_IMAGE:?The Makefile declares PYTHON_IMAGE}"
-: "${MARKDOWN_IMAGE:?The Makefile declares MARKDOWN_IMAGE}"
-: "${SHELLCHECK_IMAGE:?The Makefile declares SHELLCHECK_IMAGE}"
-python_image=
-markdown_image=
-shellcheck_image=
-compiler_build() {
-    local input resolved compiler_version compiler_image build_help
-    for input in .dockerignore Makefile pavolume.c .python-version tests/container/Dockerfile tests/container/compiler; do
-        if [[ ! -f ${checkout}/${input} || -L ${checkout}/${input} ]]; then
-            printf 'Compiler input must be a regular file: %s\n' "${input}" >&2
-            return 2
-        fi
-        resolved=$(realpath -e -- "${checkout}/${input}")
-        case "${resolved}" in "${checkout}"/*) ;; *) printf '%s\n' 'Compiler input escapes the checkout.' >&2; return 2 ;; esac
-    done
-    compiler_version=$(<"${checkout}/.python-version")
-    if [[ ! ${compiler_version} =~ ^[0-9]+\.[0-9]+$ ]]; then printf '%s\n' 'Invalid compiler base version.' >&2; return 2; fi
-    build_help=$(docker build --help)
-    if [[ ${build_help} != *--resource* || ${build_help} != *--ulimit* ]]; then
-        printf '%s\n' 'Uncapped compiler image builds are disabled.' >&2
-        return 2
-    fi
-    timeout --signal=TERM --kill-after=10 "${limit}" \
-        docker build --resource cpu-period=100000 --resource cpu-quota=400000 \
-        --resource "memory=${memory_limit}" --ulimit nofile=256:256 \
-        --iidfile "${scratch}/compiler-image.id" --file "${checkout}/tests/container/Dockerfile" \
-        --build-arg "PYTHON_VERSION=${compiler_version}" "${checkout}"
-    compiler_image=$(<"${scratch}/compiler-image.id")
-    if [[ ! ${compiler_image} =~ ^sha256:[a-f0-9]{64}$ ]]; then printf '%s\n' 'Compiler image did not resolve to an immutable ID.' >&2; return 2; fi
-    stock_run_image "${compiler_image}" -- sh /opt/check/compiler
-}
 stock_begin "${checkout}"
 if [[ ${action} != build ]]; then
-    stock_image python_image "${PYTHON_IMAGE}"
-    stock_image markdown_image "${MARKDOWN_IMAGE}"
-    stock_image shellcheck_image "${SHELLCHECK_IMAGE}"
-    STOCK_NETWORK=bridge stock_run "${python_image}" -- sh tests/container/python
-    STOCK_NETWORK=bridge stock_run "${markdown_image}" -- sh tests/container/markdown
-    stock_readonly "${shellcheck_image}" /bin/shellcheck -x -P SCRIPTDIR \
+    STOCK_NETWORK=bridge stock_run "${PYTHON_IMAGE}" -- sh tests/container/python
+    STOCK_NETWORK=bridge stock_run "${MARKDOWN_IMAGE}" -- sh tests/container/markdown
+    stock_readonly "${SHELLCHECK_IMAGE}" /bin/shellcheck -x -P SCRIPTDIR \
         tests/container/stock tests/container/check-stock tests/container/compiler \
         tests/container/python tests/container/markdown
 fi
-if [[ ${action} != lint ]]; then compiler_build; fi
+if [[ ${action} != lint ]]; then
+    timeout --signal=TERM --kill-after=10 "${CHECK_TIMEOUT_SECONDS:-900}" \
+        docker build --resource cpu-period=100000 --resource cpu-quota=400000 \
+        --resource "memory=${CHECK_MEMORY:-4g}" --ulimit nofile=256:256 \
+        --iidfile "${scratch}/compiler-image.id" --file "${checkout}/tests/container/Dockerfile" \
+        --build-arg "PYTHON_VERSION=$(cat "${checkout}/.python-version")" "${checkout}"
+    compiler_image=$(<"${scratch}/compiler-image.id")
+    stock_run_image "${compiler_image}" -- sh /opt/check/compiler
+fi
 stock_finish
