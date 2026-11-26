@@ -8,7 +8,8 @@ case "${action}" in check|lint|build) ;; *) printf 'Unknown project check: %s\n'
 if (( $# > 1 )); then printf '%s\n' 'Project checks do not accept extra arguments.' >&2; exit 2; fi
 stock_begin "${checkout}"
 if [[ ${action} != build ]]; then
-    STOCK_NETWORK=bridge stock_run "${PYTHON_IMAGE}" -- sh tests/container/python
+    python_image=$(awk '$1 == "FROM" { print $2; exit }' "${checkout}/tests/container/Dockerfile")
+    STOCK_NETWORK=bridge stock_run "${python_image}" -- sh tests/container/python
     STOCK_NETWORK=bridge stock_run "${MARKDOWN_IMAGE}" -- sh tests/container/markdown
     stock_readonly "${SHELLCHECK_IMAGE}" /bin/shellcheck -x -P SCRIPTDIR \
         tests/container/stock tests/container/check-stock tests/container/compiler \
@@ -19,7 +20,7 @@ if [[ ${action} != lint ]]; then
         docker build --resource cpu-period=100000 --resource cpu-quota=400000 \
         --resource "memory=${CHECK_MEMORY:-4g}" --ulimit nofile=256:256 \
         --iidfile "${scratch}/compiler-image.id" --file "${checkout}/tests/container/Dockerfile" \
-        --build-arg "PYTHON_VERSION=$(cat "${checkout}/.python-version")" "${checkout}"
+        "${checkout}"
     compiler_image=$(<"${scratch}/compiler-image.id")
     stock_run_image "${compiler_image}" -- sh /opt/check/compiler
 fi

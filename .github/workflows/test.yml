@@ -68,7 +68,8 @@ jobs:
           set -euo pipefail
           source tests/container/stock
           stock_begin "$PWD"
-          STOCK_NETWORK=bridge stock_run "python:$(cat .python-version)" -- sh -ec '
+          python_image=$(awk '$1 == "FROM" { print $2; exit }' tests/container/Dockerfile)
+          STOCK_NETWORK=bridge stock_run "${python_image}" -- sh -ec '
           python -m venv /scratch/venv
           /scratch/venv/bin/python -m pip install --disable-pip-version-check -r requirements-dev.txt
           /scratch/venv/bin/cppcheck --enable=warning,style,performance,portability \
